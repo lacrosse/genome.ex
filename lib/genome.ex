@@ -1,16 +1,5 @@
 defmodule Genome do
-  def reverse_nucleotide("A"), do: "T"
-  def reverse_nucleotide("C"), do: "G"
-  def reverse_nucleotide("G"), do: "C"
-  def reverse_nucleotide("T"), do: "A"
-  def nucleotide_to_hash("A"), do: 0
-  def nucleotide_to_hash("C"), do: 1
-  def nucleotide_to_hash("G"), do: 2
-  def nucleotide_to_hash("T"), do: 3
-  def hash_to_nucleotide(0), do: "A"
-  def hash_to_nucleotide(1), do: "C"
-  def hash_to_nucleotide(2), do: "G"
-  def hash_to_nucleotide(3), do: "T"
+  alias Genome.Nucleotide
 
   def pattern_count("", _), do: 0
   def pattern_count(genome, pattern) do
@@ -33,50 +22,53 @@ defmodule Genome do
         Map.put_new_lazy(freqs, pattern, fn -> pattern_count(genome, pattern) end)
       end)
 
-    {_, top_frequency} = frequencies |> Enum.sort_by(&elem(&1, 1), &>=/2) |> Enum.at(0)
+    {_, top_frequency} =
+      frequencies
+      |> Enum.sort_by(&elem(&1, 1), &>=/2)
+      |> Enum.at(0)
 
     frequencies
     |> Enum.filter_map(&elem(&1, 1) == top_frequency, &elem(&1, 0))
   end
 
   def faster_frequent_patterns(genome, k) do
-    frequencies(genome, k)
+    genome
+    |> frequencies(k)
     |> Enum.reduce({[], 0}, fn
-      {pattern_hash, count}, {_, winning_count} when count > winning_count ->
-        {[hash_to_genome(pattern_hash, k), count]}
-      {pattern_hash, count}, {patterns, count} ->
-        {[hash_to_genome(pattern_hash, k)|patterns], count}
+      {encoded_pattern, count}, {_, winning_count} when count > winning_count ->
+        {[decode(encoded_pattern, k), count]}
+      {encoded_pattern, count}, {patterns, count} ->
+        {[decode(encoded_pattern, k)|patterns], count}
       _, acc ->
         acc
     end)
   end
 
   def reverse_complement(""), do: ""
-  def reverse_complement(<<head::binary-size(1), tail::binary>>),
-    do: reverse_complement(tail) <> reverse_nucleotide(head)
+  def reverse_complement(<<nucleotide::binary-size(1), tail::binary>>),
+    do: reverse_complement(tail) <> Nucleotide.reverse(nucleotide)
 
   def pattern_matches(genome, pattern), do: do_pattern_matches(genome, pattern, 0, [])
 
-  def genome_to_hash(genome, acc \\ "")
-  def genome_to_hash("", acc), do: acc |> String.to_integer(4)
-  def genome_to_hash(<<nucleotide::binary-1, tail::binary>>, acc),
-    do: genome_to_hash(tail, acc <> Integer.to_string(nucleotide_to_hash(nucleotide)))
+  def encode(genome, acc \\ "")
+  def encode("", acc), do: acc |> String.to_integer(4)
+  def encode(<<nucleotide::binary-1, tail::binary>>, acc),
+    do: encode(tail, acc <> Integer.to_string(Nucleotide.encode(nucleotide)))
 
-  def hash_to_genome(hash, k) do
+  def decode(hash, k) do
     hash
     |> Integer.to_string(4)
     |> String.pad_leading(k, "0")
     |> String.codepoints()
     |> Enum.map(&String.to_integer/1)
-    |> Enum.map(&hash_to_nucleotide/1)
+    |> Enum.map(&Nucleotide.decode/1)
     |> Enum.join()
   end
 
   def frequencies(genome, k, acc \\ %{})
   def frequencies(genome, k, acc) do
-    with <<mer::binary-size(k), _::binary>> <- genome do
-      new_acc = Map.update(acc, mer |> genome_to_hash(), 1, & &1 + 1)
-      frequencies(String.slice(genome, 1..-1), k, new_acc)
+    with <<kmer::binary-size(k), _::binary>> <- genome do
+      frequencies(String.slice(genome, 1..-1), k, Map.update(acc, encode(kmer), 1, & &1 + 1))
     else
       _ -> acc
     end
@@ -89,7 +81,7 @@ defmodule Genome do
     |> Stream.map(& &1 |> to_string() |> frequencies(k))
     |> Stream.flat_map(& &1 |> Enum.filter_map(fn {_, v} -> v >= saturation end, fn {k, _} -> k end))
     |> Stream.uniq
-    |> Stream.map(&hash_to_genome(&1, k))
+    |> Stream.map(&decode(&1, k))
   end
 
   defp do_pattern_matches("", _, _, acc), do: acc

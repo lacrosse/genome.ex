@@ -1,7 +1,5 @@
-import Genome
-
 [genome|params] =
-  File.read!("dataset_4_5.txt")
+  File.read!("datasets/dataset_4_5.txt")
   |> String.split()
 
 [k, l, t] = params |> Enum.map(&String.to_integer/1)
