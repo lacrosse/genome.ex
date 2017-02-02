@@ -52,23 +52,32 @@ defmodule Genome.Sequence do
     end
   end
 
-  def find_clumps(seq, k, window_size, saturation) do
+  def clumps(seq, k, window_size, saturation) do
     seq
     |> Stream.chunk(window_size, 1)
-    |> Enum.map_reduce(nil, fn window, freqs_template ->
+    |> Enum.reduce({MapSet.new(), nil}, fn window, {patterns, freqs_template} ->
       freqs =
         case freqs_template do
           nil -> frequencies(window, k)
-          value -> Map.update(value, encode(Enum.slice(window, window_size - k, k)), 1, & &1 + 1)
+          value ->
+            encoded_last_kmer = encode(Enum.slice(window, window_size - k, k))
+            Map.update(value, encoded_last_kmer, 1, & &1 + 1)
         end
-      next_freqs = Map.update!(freqs, encode(Enum.slice(window, 0, k)), & &1 - 1)
+      current_patterns =
+        freqs
+        |> Enum.filter_map(
+          fn {_, freq} -> freq >= saturation end,
+          fn {pattern, _} -> pattern end
+        )
+        |> Enum.into(MapSet.new())
+      first_encoded_kmer = encode(Enum.slice(window, 0, k))
+      {_, next_freqs} =
+        Map.get_and_update!(freqs, first_encoded_kmer, &(if &1 == 1, do: :pop, else: {nil, &1 - 1}))
 
-      {freqs, next_freqs}
+      new_patterns = patterns |> MapSet.union(current_patterns)
+
+      {new_patterns, next_freqs}
     end)
     |> elem(0)
-    |> Stream.flat_map(& &1 |> Enum.filter_map(fn {_, v} -> v >= saturation end, fn {k, _} -> k end))
-    |> Stream.uniq()
-    |> Stream.map(&decode(&1, k))
-    |> Enum.into(MapSet.new())
   end
 end

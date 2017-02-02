@@ -92,20 +92,24 @@ defmodule Genome.SequenceTest do
     assert string |> Sequence.from_string() |> Sequence.frequencies(k) == expected
   end
 
-  test "find_clumps" do
+  test "clumps" do
     [string|params] = dataset("4_5")
     [k, l, t] = params |> Enum.map(&String.to_integer/1)
 
-    assert string |> Sequence.from_string() |> Sequence.find_clumps(k, l, t) ==
+    expected =
       ~w|CCAGTCTTAC CGAACGGAGC ACGGATTTTA AGACTCAAAA AGGGCTAAAA TGGCTGCAGT TTCGGGGTAC GCCGATAGGT|
-      |> Enum.map(&Sequence.from_string/1) |> MapSet.new()
+      |> Enum.map(&Sequence.from_string/1)
+      |> Enum.map(&Sequence.encode/1)
+      |> MapSet.new()
+
+    assert string |> Sequence.from_string() |> Sequence.clumps(k, l, t) == expected
   end
 
   @tag skip: true
-  test "find_clumps in E. coli" do
+  test "clumps in E. coli" do
     [string] = file("E_coli")
 
-    assert string |> Sequence.from_string() |> Sequence.find_clumps(9, 500, 3) == 0
+    assert string |> Sequence.from_string() |> Sequence.clumps(9, 500, 3) == 0
   end
 
   defp file(id), do: "datasets/#{id}.txt" |> Path.expand() |> File.read!() |> String.split()
