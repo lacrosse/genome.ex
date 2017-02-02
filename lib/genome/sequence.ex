@@ -1,7 +1,9 @@
 defmodule Genome.Sequence do
   alias Genome.Nucleotide
 
-  def from_string(string), do: string |> to_charlist() |> Enum.map(&Nucleotide.encode/1)
+  def from_enumerable(stream), do: stream |> Enum.map(&Nucleotide.encode/1)
+
+  def from_string(string), do: string |> to_charlist() |> from_enumerable()
 
   def pattern_count(seq, pattern, acc \\ 0)
   def pattern_count(seq, pattern, acc) when length(pattern) > length(seq), do: acc
@@ -55,29 +57,37 @@ defmodule Genome.Sequence do
   def clumps(seq, k, window_size, saturation) do
     seq
     |> Stream.chunk(window_size, 1)
+    |> Stream.map(& &1 |> :array.from_list())
     |> Enum.reduce({MapSet.new(), nil}, fn window, {patterns, freqs_template} ->
-      freqs =
+      {freqs, candidate_freqs} =
         case freqs_template do
-          nil -> frequencies(window, k)
+          nil ->
+            freqs = frequencies(window |> :array.to_list(), k)
+            {freqs, freqs}
           value ->
-            encoded_last_kmer = encode(Enum.slice(window, window_size - k, k))
-            Map.update(value, encoded_last_kmer, 1, & &1 + 1)
+            encoded_last_kmer = window |> array_slice(window_size - k..window_size - 1) |> encode()
+            freqs = Map.update(value, encoded_last_kmer, 1, & &1 + 1)
+            {freqs, [{encoded_last_kmer, Map.get(freqs, encoded_last_kmer)}]}
         end
-      current_patterns =
-        freqs
+      new_patterns =
+        candidate_freqs
         |> Enum.filter_map(
           fn {_, freq} -> freq >= saturation end,
           fn {pattern, _} -> pattern end
         )
         |> Enum.into(MapSet.new())
-      first_encoded_kmer = encode(Enum.slice(window, 0, k))
-      {_, next_freqs} =
-        Map.get_and_update!(freqs, first_encoded_kmer, &(if &1 == 1, do: :pop, else: {nil, &1 - 1}))
+        |> MapSet.union(patterns)
 
-      new_patterns = patterns |> MapSet.union(current_patterns)
+      {_, next_freqs} =
+        freqs
+        |> Map.get_and_update!(window |> array_slice(0..k - 1) |> encode, &(if &1 == 1, do: :pop, else: {nil, &1 - 1}))
 
       {new_patterns, next_freqs}
     end)
     |> elem(0)
+  end
+
+  defp array_slice(array, range) do
+    range |> Enum.map(&:array.get(&1, array))
   end
 end

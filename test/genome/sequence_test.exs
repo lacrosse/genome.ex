@@ -6,14 +6,14 @@ defmodule Genome.SequenceTest do
   doctest Genome.Sequence
 
   test "pattern_count" do
-    [seq_string, pattern_string] = dataset("2_7")
+    [seq_string, pattern_string] = dataset("2_7") |> Enum.reduce(&<>/2) |> String.split()
     pattern = pattern_string |> Sequence.from_string()
 
     assert seq_string |> Sequence.from_string() |> Sequence.pattern_count(pattern) == 33
   end
 
   test "frequent_patterns" do
-    [string, k] = dataset("2_10")
+    [string, k] = dataset("2_10") |> Enum.reduce(&<>/2) |> String.split()
     k = k |> String.to_integer()
 
     assert string |> Sequence.from_string() |> Sequence.frequent_patterns(k) |> MapSet.new() ==
@@ -22,7 +22,7 @@ defmodule Genome.SequenceTest do
   end
 
   test "pattern_matches" do
-    [pattern_string, seq_string] = dataset("3_5")
+    [pattern_string, seq_string] = dataset("3_5") |> Enum.reduce(&<>/2) |> String.split()
     pattern = pattern_string |> Sequence.from_string()
 
     assert seq_string |> Sequence.from_string() |> Sequence.pattern_matches(pattern) ==
@@ -42,7 +42,7 @@ defmodule Genome.SequenceTest do
   end
 
   test "frequencies" do
-    [string, k] = dataset("2994_5")
+    [string, k] = dataset("2994_5") |> Enum.reduce(&<>/2) |> String.split()
     k = k |> String.to_integer()
 
     expected = %{
@@ -93,7 +93,7 @@ defmodule Genome.SequenceTest do
   end
 
   test "clumps" do
-    [string|params] = dataset("4_5")
+    [string|params] = dataset("4_5") |> Enum.reduce(&<>/2) |> String.split()
     [k, l, t] = params |> Enum.map(&String.to_integer/1)
 
     expected =
@@ -105,13 +105,14 @@ defmodule Genome.SequenceTest do
     assert string |> Sequence.from_string() |> Sequence.clumps(k, l, t) == expected
   end
 
-  @tag skip: true
+  @tag timeout: 180_000
+  # @tag skip: true
   test "clumps in E. coli" do
-    [string] = file("E_coli")
+    seq = file("E_coli") |> Stream.flat_map(&to_charlist/1) |> Sequence.from_enumerable()
 
-    assert string |> Sequence.from_string() |> Sequence.clumps(9, 500, 3) == 0
+    assert seq |> Sequence.clumps(9, 500, 3) |> MapSet.size == 1904
   end
 
-  defp file(id), do: "datasets/#{id}.txt" |> Path.expand() |> File.read!() |> String.split()
+  defp file(id), do: "datasets/#{id}.txt" |> Path.expand() |> File.stream!([], 10240)
   defp dataset(id), do: file("dataset_#{id}")
 end
