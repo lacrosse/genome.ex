@@ -5,6 +5,10 @@ defmodule Genome.Sequence do
 
   def from_string(string), do: string |> to_charlist() |> from_enumerable()
 
+  def encode(seq), do: seq |> Integer.undigits(4)
+
+  def decode(hash, k), do: hash |> Integer.digits(4) |> :string.right(k, 0)
+
   def pattern_count(seq, pattern, acc \\ 0)
   def pattern_count(seq, pattern, acc) when length(pattern) > length(seq), do: acc
   def pattern_count(seq, pattern, acc) do
@@ -39,10 +43,6 @@ defmodule Genome.Sequence do
     new_acc = if kmer == pattern, do: [index|acc], else: acc
     pattern_matches(tl(seq), pattern, index + 1, new_acc)
   end
-
-  def encode(seq), do: seq |> Integer.undigits(4)
-
-  def decode(hash, k), do: hash |> Integer.digits(4) |> :string.right(k, 0)
 
   def frequencies(seq, k, acc \\ %{})
   def frequencies(seq, k, acc) do

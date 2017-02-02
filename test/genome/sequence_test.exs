@@ -1,9 +1,22 @@
 defmodule Genome.SequenceTest do
   use ExUnit.Case, async: true
 
-  alias Genome.Sequence
+  alias Genome.{Sequence, Nucleotide}
 
   doctest Genome.Sequence
+
+  test "encode" do
+    [seq_string] = dataset("3010_2") |> Enum.reduce(&<>/2) |> String.split()
+
+    assert seq_string |> Sequence.from_string() |> Sequence.encode() == 407127899
+  end
+
+  test "decode" do
+    [hash, k] = dataset("3010_5") |> Enum.reduce(&<>/2) |> String.split()
+    k = k |> String.to_integer()
+
+    assert hash |> String.to_integer() |> Sequence.decode(k) |> Enum.map(&Nucleotide.decode/1) == 'AAGAAGCGC'
+  end
 
   test "pattern_count" do
     [seq_string, pattern_string] = dataset("2_7") |> Enum.reduce(&<>/2) |> String.split()
@@ -106,7 +119,7 @@ defmodule Genome.SequenceTest do
   end
 
   @tag timeout: 180_000
-  # @tag skip: true
+  @tag skip: true
   test "clumps in E. coli" do
     seq = file("E_coli") |> Stream.flat_map(&to_charlist/1) |> Sequence.from_enumerable()
 
