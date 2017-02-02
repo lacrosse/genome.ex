@@ -6,29 +6,27 @@ defmodule Genome.SequenceTest do
   doctest Genome.Sequence
 
   test "pattern_count" do
-    [seq, pattern] = dataset("2_7")
+    [seq_string, pattern_string] = dataset("2_7")
+    pattern = pattern_string |> Sequence.from_string()
 
-    assert Sequence.pattern_count(seq, pattern) == 33
+    assert seq_string |> Sequence.from_string() |> Sequence.pattern_count(pattern) == 33
   end
 
   test "frequent_patterns" do
-    [seq, k] = dataset("2_10")
+    [string, k] = dataset("2_10")
     k = k |> String.to_integer()
 
-    assert MapSet.new(Sequence.frequent_patterns(seq, k)) == ~M|GTTCCGACGTTCCG CGTTCCGACGTTCC TTCCGACGTTCCGA|
-  end
-
-  test "faster_frequent_patterns on frequent_patterns dataset" do
-    [seq, k] = dataset("2_10")
-    k = k |> String.to_integer()
-
-    assert MapSet.new(Sequence.faster_frequent_patterns(seq, k)) == ~M|GTTCCGACGTTCCG CGTTCCGACGTTCC TTCCGACGTTCCGA|
+    assert string |> Sequence.from_string() |> Sequence.frequent_patterns(k) |> MapSet.new() ==
+      ~w|GTTCCGACGTTCCG CGTTCCGACGTTCC TTCCGACGTTCCGA|c
+      |> Enum.map(&Sequence.from_string/1) |> MapSet.new()
   end
 
   test "pattern_matches" do
-    [pattern, seq] = dataset("3_5")
+    [pattern_string, seq_string] = dataset("3_5")
+    pattern = pattern_string |> Sequence.from_string()
 
-    assert Sequence.pattern_matches(seq, pattern) == ~w|8200 8169 8082 8075 8068 8061 8025 8008 7975 7968 7943
+    assert seq_string |> Sequence.from_string() |> Sequence.pattern_matches(pattern) ==
+      ~w|8200 8169 8082 8075 8068 8061 8025 8008 7975 7968 7943
       7906 7899 7889 7882 7826 7807 7773 7708 7701 7676 7467 7433 7407 7391 7375 7347 7340 7277 7257 7218 7210 7203
       7179 7138 7111 7084 7073 7066 7059 7042 7005 6952 6924 6865 6838 6792 6763 6686 6650 6613 6596 6588 6491 6447
       6440 6433 6426 6381 6338 6304 6286 6271 6264 6224 6217 6200 6142 6135 6111 6104 6097 6090 6056 6049 6042 6035
@@ -44,7 +42,7 @@ defmodule Genome.SequenceTest do
   end
 
   test "frequencies" do
-    [seq, k] = dataset("2994_5")
+    [string, k] = dataset("2994_5")
     k = k |> String.to_integer()
 
     expected = %{
@@ -91,19 +89,25 @@ defmodule Genome.SequenceTest do
       741 => 1
     }
 
-    assert Sequence.frequencies(seq, k) == expected
+    assert string |> Sequence.from_string() |> Sequence.frequencies(k) == expected
   end
 
-  @tag skip: "slow"
   test "find_clumps" do
-    [seq|params] = dataset("4_5")
+    [string|params] = dataset("4_5")
     [k, l, t] = params |> Enum.map(&String.to_integer/1)
 
-    assert Genome.Sequence.find_clumps(seq, k, l, t) |> Enum.to_list ==
+    assert string |> Sequence.from_string() |> Sequence.find_clumps(k, l, t) ==
       ~w|CCAGTCTTAC CGAACGGAGC ACGGATTTTA AGACTCAAAA AGGGCTAAAA TGGCTGCAGT TTCGGGGTAC GCCGATAGGT|
+      |> Enum.map(&Sequence.from_string/1) |> MapSet.new()
   end
 
-  defp dataset(id), do: "datasets/dataset_#{id}.txt" |> Path.expand() |> File.read!() |> String.split()
+  @tag skip: true
+  test "find_clumps in E. coli" do
+    [string] = file("E_coli")
 
-  defp sigil_M(string, _), do: string |> String.split() |> MapSet.new()
+    assert string |> Sequence.from_string() |> Sequence.find_clumps(9, 500, 3) == 0
+  end
+
+  defp file(id), do: "datasets/#{id}.txt" |> Path.expand() |> File.read!() |> String.split()
+  defp dataset(id), do: file("dataset_#{id}")
 end
