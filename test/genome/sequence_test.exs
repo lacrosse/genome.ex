@@ -6,27 +6,27 @@ defmodule Genome.SequenceTest do
   doctest Genome.Sequence
 
   test "encode" do
-    [seq_string] = dataset("3010_2") |> Enum.reduce(&<>/2) |> String.split()
+    [seq_string] = dataset("3010_2") |> String.split()
 
     assert seq_string |> Sequence.from_string() |> Sequence.encode() == 407127899
   end
 
   test "decode" do
-    [hash, k] = dataset("3010_5") |> Enum.reduce(&<>/2) |> String.split()
+    [hash, k] = dataset("3010_5") |> String.split()
     k = k |> String.to_integer()
 
     assert hash |> String.to_integer() |> Sequence.decode(k) |> Enum.map(&Nucleotide.decode/1) == 'AAGAAGCGC'
   end
 
   test "pattern_count" do
-    [seq_string, pattern_string] = dataset("2_7") |> Enum.reduce(&<>/2) |> String.split()
+    [seq_string, pattern_string] = dataset("2_7") |> String.split()
     pattern = pattern_string |> Sequence.from_string()
 
     assert seq_string |> Sequence.from_string() |> Sequence.pattern_count(pattern) == 33
   end
 
   test "frequent_patterns" do
-    [string, k] = dataset("2_10") |> Enum.reduce(&<>/2) |> String.split()
+    [string, k] = dataset("2_10") |> String.split()
     k = k |> String.to_integer()
 
     assert string |> Sequence.from_string() |> Sequence.frequent_patterns(k) |> MapSet.new() ==
@@ -35,7 +35,7 @@ defmodule Genome.SequenceTest do
   end
 
   test "pattern_matches" do
-    [pattern_string, seq_string] = dataset("3_5") |> Enum.reduce(&<>/2) |> String.split()
+    [pattern_string, seq_string] = dataset("3_5") |> String.split()
     pattern = pattern_string |> Sequence.from_string()
 
     assert seq_string |> Sequence.from_string() |> Sequence.pattern_matches(pattern) ==
@@ -55,7 +55,7 @@ defmodule Genome.SequenceTest do
   end
 
   test "frequencies" do
-    [string, k] = dataset("2994_5") |> Enum.reduce(&<>/2) |> String.split()
+    [string, k] = dataset("2994_5") |> String.split()
     k = k |> String.to_integer()
 
     expected = %{
@@ -106,7 +106,7 @@ defmodule Genome.SequenceTest do
   end
 
   test "clumps" do
-    [string|params] = dataset("4_5") |> Enum.reduce(&<>/2) |> String.split()
+    [string|params] = dataset("4_5") |> String.split()
     [k, l, t] = params |> Enum.map(&String.to_integer/1)
 
     expected =
@@ -133,12 +133,35 @@ defmodule Genome.SequenceTest do
   end
 
   test "minimum_skews" do
-    [string] = read_file("dataset_7_6") |> String.split()
+    [string] = dataset("7_6") |> String.split()
 
     assert string |> Sequence.from_string() |> Sequence.minimum_skews() == [197, 198, 38898, 38899]
   end
 
+  test "hamming_distance" do
+    [str1, str2] = dataset("9_3") |> String.split()
+
+    assert Sequence.hamming_distance(Sequence.from_string(str1), Sequence.from_string(str2)) == 789
+  end
+
+  test "approximate_pattern_matches" do
+    [patstr, seqstr, dstr] = dataset("9_4") |> String.split()
+    assert Sequence.approximate_pattern_matches(Sequence.from_string(seqstr), Sequence.from_string(patstr), String.to_integer(dstr)) ==
+      ~w|17299 17222 16209 15138 15094 14917 14771 14756 14231 13929 13548 13435 13099 12946 11717 10262 9554 9435
+      9428 8992 8335 7898 7783 7429 7299 6897 6266 5761 5292 5217 4910 4830 4612 4254 4149 3705 3594 3306 178|
+      |> Enum.map(&String.to_integer/1)
+  end
+
+  test "approximate_pattern_count small" do
+    assert "AACAAGCTGATAAACATTTAAAGAG" |> Sequence.from_string() |> Sequence.approximate_pattern_count(Sequence.from_string("AAAAA"), 2) == 11
+  end
+
+  test "approximate_pattern_count" do
+    [patstr, seqstr, dstr] = dataset("9_6") |> String.split()
+    assert Sequence.approximate_pattern_count(Sequence.from_string(seqstr), Sequence.from_string(patstr), String.to_integer(dstr)) == 32
+  end
+
   defp read_file(id), do: "datasets/#{id}.txt" |> Path.expand() |> File.read!()
   defp stream_file(id), do: "datasets/#{id}.txt" |> Path.expand() |> File.stream!([], 10240)
-  defp dataset(id), do: stream_file("dataset_#{id}")
+  defp dataset(id), do: read_file("dataset_#{id}")
 end

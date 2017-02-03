@@ -15,6 +15,8 @@ defmodule Genome.Sequence do
     pattern_count(tl(seq), pattern, acc + (if Enum.take(seq, length(pattern)) == pattern, do: 1, else: 0))
   end
 
+  def approximate_pattern_count(seq, pattern, d), do: Enum.count(approximate_pattern_matches(seq, pattern, d))
+
   def frequent_patterns(seq, k) do
     {patterns, _max_count} =
       seq
@@ -40,8 +42,17 @@ defmodule Genome.Sequence do
   def pattern_matches(seq, pattern, index, acc) do
     k = length(pattern)
     kmer = Enum.take(seq, k)
-    new_acc = if kmer == pattern, do: [index|acc], else: acc
+    new_acc = if kmer == pattern, do: [index | acc], else: acc
     pattern_matches(tl(seq), pattern, index + 1, new_acc)
+  end
+
+  def approximate_pattern_matches(seq, pattern, d, index \\ 0, acc \\ [])
+  def approximate_pattern_matches(seq, pattern, d, _, acc) when length(pattern) > length(seq), do: acc
+  def approximate_pattern_matches(seq, pattern, d, index, acc) do
+    k = length(pattern)
+    kmer = Enum.take(seq, k)
+    new_acc = if hamming_distance(kmer, pattern) <= d, do: [index | acc], else: acc
+    approximate_pattern_matches(tl(seq), pattern, d, index + 1, new_acc)
   end
 
   def frequencies(seq, k, acc \\ %{})
@@ -62,12 +73,12 @@ defmodule Genome.Sequence do
       {freqs, candidate_freqs} =
         case freqs_template do
           nil ->
-            freqs = frequencies(window |> :array.to_list(), k)
-            {freqs, freqs}
+            with freqs = frequencies(window |> :array.to_list(), k),
+                 do: {freqs, freqs}
           value ->
-            encoded_last_kmer = window |> array_slice(window_size - k..window_size - 1) |> encode()
-            freqs = Map.update(value, encoded_last_kmer, 1, & &1 + 1)
-            {freqs, [{encoded_last_kmer, Map.get(freqs, encoded_last_kmer)}]}
+            with encoded_last_kmer = window |> array_slice(window_size - k..window_size - 1) |> encode(),
+                 freqs = Map.update(value, encoded_last_kmer, 1, & &1 + 1),
+                 do: {freqs, [{encoded_last_kmer, Map.get(freqs, encoded_last_kmer)}]}
         end
       new_patterns =
         candidate_freqs
@@ -102,14 +113,19 @@ defmodule Genome.Sequence do
     |> skews()
     |> Enum.with_index()
     |> Enum.sort()
-    |> Enum.reduce_while({nil, nil}, fn
-      {skew, index}, {nil, _} ->
+    |> Enum.reduce_while(nil, fn
+      {skew, index}, nil ->
         {:cont, {skew, [index]}}
       {skew, index}, {skew, acc} ->
         {:cont, {skew, [index | acc]}}
       _, {_, acc} ->
         {:halt, Enum.reverse(acc)}
     end)
+  end
+
+  def hamming_distance(seq1, seq2) do
+    Enum.zip(seq1, seq2)
+    |> Enum.count(fn {a, b} -> a != b end)
   end
 
   defp array_slice(array, range) do
