@@ -87,6 +87,31 @@ defmodule Genome.Sequence do
     |> elem(0)
   end
 
+  def skews(seq) do
+    seq
+    |> Enum.reduce([0], fn
+      1, [prev | skews] -> [prev - 1, prev | skews]
+      2, [prev | skews] -> [prev + 1, prev | skews]
+      _, [prev | skews] -> [prev, prev | skews]
+    end)
+    |> Enum.reverse()
+  end
+
+  def minimum_skews(seq) do
+    seq
+    |> skews()
+    |> Enum.with_index()
+    |> Enum.sort()
+    |> Enum.reduce_while({nil, nil}, fn
+      {skew, index}, {nil, _} ->
+        {:cont, {skew, [index]}}
+      {skew, index}, {skew, acc} ->
+        {:cont, {skew, [index | acc]}}
+      _, {_, acc} ->
+        {:halt, Enum.reverse(acc)}
+    end)
+  end
+
   defp array_slice(array, range) do
     range |> Enum.map(&:array.get(&1, array))
   end

@@ -121,11 +121,24 @@ defmodule Genome.SequenceTest do
   @tag timeout: 180_000
   @tag skip: true
   test "clumps in E. coli" do
-    seq = file("E_coli") |> Stream.flat_map(&to_charlist/1) |> Sequence.from_enumerable()
+    seq = stream_file("E_coli") |> Stream.flat_map(&to_charlist/1) |> Sequence.from_enumerable()
 
     assert seq |> Sequence.clumps(9, 500, 3) |> MapSet.size == 1904
   end
 
-  defp file(id), do: "datasets/#{id}.txt" |> Path.expand() |> File.stream!([], 10240)
-  defp dataset(id), do: file("dataset_#{id}")
+  test "skews" do
+    seq = "GAGCCACCGCGATA" |> Sequence.from_string()
+
+    assert seq |> Sequence.skews() == [0, 1, 1, 2, 1, 0, 0, -1, -2, -1, -2, -1, -1, -1, -1]
+  end
+
+  test "minimum_skews" do
+    [string] = read_file("dataset_7_6") |> String.split()
+
+    assert string |> Sequence.from_string() |> Sequence.minimum_skews() == [197, 198, 38898, 38899]
+  end
+
+  defp read_file(id), do: "datasets/#{id}.txt" |> Path.expand() |> File.read!()
+  defp stream_file(id), do: "datasets/#{id}.txt" |> Path.expand() |> File.stream!([], 10240)
+  defp dataset(id), do: stream_file("dataset_#{id}")
 end
