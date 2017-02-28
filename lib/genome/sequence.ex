@@ -33,9 +33,7 @@ defmodule Genome.Sequence do
     patterns
   end
 
-  def reverse_complement([]), do: []
-  def reverse_complement([nucleotide|tail]),
-    do: reverse_complement(tail) <> (nucleotide |> Nucleotide.decode() |> Nucleotide.reverse() |> Nucleotide.encode())
+  def reverse_complement(seq), do: seq |> Enum.map(&Nucleotide.reverse/1) |> Enum.reverse()
 
   def pattern_matches(seq, pattern, index \\ 0, acc \\ [])
   def pattern_matches(seq, pattern, _, acc) when length(pattern) > length(seq), do: acc
