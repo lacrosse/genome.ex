@@ -5,6 +5,8 @@ defmodule Genome.Sequence do
 
   def from_string(string), do: string |> to_charlist() |> from_enumerable()
 
+  def to_string(seq), do: seq |> Enum.map(&Nucleotide.decode/1) |> Kernel.to_string()
+
   def encode(seq), do: seq |> Integer.undigits(4)
 
   def decode(hash, k), do: hash |> Integer.digits(4) |> :string.right(k, 0)
@@ -15,17 +17,15 @@ defmodule Genome.Sequence do
     pattern_count(tl(seq), pattern, acc + (if Enum.take(seq, length(pattern)) == pattern, do: 1, else: 0))
   end
 
-  def approximate_pattern_count(seq, pattern, d), do: Enum.count(approximate_pattern_matches(seq, pattern, d))
-
   def frequent_patterns(seq, k) do
     {patterns, _max_count} =
       seq
       |> frequencies(k)
       |> Enum.reduce({[], 0}, fn
         {encoded_pattern, count}, {_, winning_count} when count > winning_count ->
-          {[decode(encoded_pattern, k)], count}
+          {MapSet.new([decode(encoded_pattern, k)]), count}
         {encoded_pattern, count}, {patterns, count} ->
-          {[decode(encoded_pattern, k)|patterns], count}
+          {MapSet.put(patterns, decode(encoded_pattern, k)), count}
         _, acc ->
           acc
       end)
@@ -46,17 +46,7 @@ defmodule Genome.Sequence do
     pattern_matches(tl(seq), pattern, index + 1, new_acc)
   end
 
-  def approximate_pattern_matches(seq, pattern, d, index \\ 0, acc \\ [])
-  def approximate_pattern_matches(seq, pattern, d, _, acc) when length(pattern) > length(seq), do: acc
-  def approximate_pattern_matches(seq, pattern, d, index, acc) do
-    k = length(pattern)
-    kmer = Enum.take(seq, k)
-    new_acc = if hamming_distance(kmer, pattern) <= d, do: [index | acc], else: acc
-    approximate_pattern_matches(tl(seq), pattern, d, index + 1, new_acc)
-  end
-
-  def frequencies(seq, k, acc \\ %{})
-  def frequencies(seq, k, acc) do
+  def frequencies(seq, k, acc \\ %{}) do
     with kmer <- Enum.take(seq, k),
          ^k <- Enum.count(kmer) do
       frequencies(tl(seq), k, Map.update(acc, encode(kmer), 1, & &1 + 1))
@@ -121,11 +111,6 @@ defmodule Genome.Sequence do
       _, {_, acc} ->
         {:halt, Enum.reverse(acc)}
     end)
-  end
-
-  def hamming_distance(seq1, seq2) do
-    Enum.zip(seq1, seq2)
-    |> Enum.count(fn {a, b} -> a != b end)
   end
 
   defp array_slice(array, range) do
